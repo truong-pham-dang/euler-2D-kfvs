@@ -99,7 +99,7 @@ module mod_cell_2D
        
        ! Sort vertexes for each cell
        ! sort_vertex failed
-       !do i = 1, nbelm
+       !do i = 1, nbelm 
        !    call sort_vertex(cell(i)%p%vertex)
        !enddo 
 
@@ -361,26 +361,36 @@ module mod_cell_2D
        implicit none 
        
        type(point) :: vertices(:)
+       type(point) :: vertices_temp(4)
        
        integer     :: i, location
        
        do i = 1, size(vertices) - 1
-           location = findminimum(vertices(i),i,size(vertices))
+           location = findminimum(i,size(vertices))
            call swap_point(vertices(i),vertices(location))
        enddo 
        
-       if (vertices(1)%x > vertices(2)%x) then
-           call swap_point(vertices(1),vertices(2))
-       endif 
+       vertices_temp = vertices
        
-       if (vertices(4)%x > vertices(3)%x) then
-           call swap_point(vertices(4),vertices(3))
+       if (vertices_temp(1)%y < vertices_temp(2)%y) then
+           vertices(1) = vertices_temp(1)
+           vertices(4) = vertices_temp(2)
+       else if (vertices_temp(1)%y >= vertices_temp(2)%y) then 
+           vertices(1) = vertices_temp(2)
+           vertices(4) = vertices_temp(1)
        endif
        
+       if (vertices_temp(3)%y < vertices_temp(4)%y) then
+           vertices(2) = vertices_temp(3)
+           vertices(3) = vertices_temp(4)
+       else if (vertices_temp(3)%y >= vertices_temp(4)%y) then 
+           vertices(2) = vertices_temp(4)
+           vertices(3) = vertices_temp(3)
+       endif 
+       
        contains
-          integer function findminimum(in_point,start,endp)
+          integer function findminimum(start,endp)
           implicit none
-          type(point)         :: in_point
           integer, intent(in) :: start, endp
           
           integer             :: location, i
@@ -389,7 +399,7 @@ module mod_cell_2D
           minimum = vertices(start)
           location = start
           do i = start + 1, endp
-              if (vertices(i)%y < minimum%y) then
+              if (vertices(i)%x < minimum%x) then
                   minimum = vertices(i)
                   location = i
               endif 
@@ -399,4 +409,110 @@ module mod_cell_2D
           end function findminimum
        end subroutine sort_vertex
 !----------------------------------------------------------------------
+       subroutine assign_id_face_v2
+       use mod_point_util
+       implicit none
+       integer                :: i, j, k
+       type(cell_2D), pointer :: pc, pc2
+       type(face),    pointer :: pfac, pfac2
+       
+       nbfaces = 0
+       do i = 1, nbelm
+           pc => cell(i)%p
+           do j = 1, 4
+               pfac => pc%faces(j)
+               if (pfac%idface == 0) then ! a face that has not been indexed yet
+                   pc2 => pc%neighbor1
+                   if (associated(pc%neighbor1)) then
+                       do k = 1, 4
+                           pfac2 => pc2%faces(k)
+                           if ((pfac%centroid .eq. pfac2%centroid) .and. abs(pfac%area - pfac2%area) <= 1.0d-9) then
+                            if (pfac2%idface == 0) then
+                                nbfaces = nbfaces + 1
+                                pfac%idface = nbfaces
+                                pfac2%idface = nbfaces
+                            endif
+                           endif
+                       enddo
+                   else if (.not. associated(pc%neighbor1)) then 
+                       if (pfac%bc_typ /= 0) then ! boundary face
+                           if (pfac%idface > 0) cycle 
+                        nbfaces = nbfaces + 1
+                        pfac%idface = nbfaces 
+                       endif
+                   endif 
+                   pc2 => pc%neighbor2
+                   if (associated(pc%neighbor2)) then
+                       do k = 1, 4
+                           pfac2 => pc2%faces(k)
+                           if ((pfac%centroid .eq. pfac2%centroid) .and. abs(pfac%area - pfac2%area) <= 1.0d-9) then
+                            if (pfac2%idface == 0) then
+                                nbfaces = nbfaces + 1
+                                pfac%idface = nbfaces
+                                pfac2%idface = nbfaces
+                            endif
+                           endif
+                       enddo 
+                   else if (.not. associated(pc%neighbor2)) then 
+                       if (pfac%bc_typ /= 0) then ! boundary face
+                           if (pfac%idface > 0) cycle
+                        nbfaces = nbfaces + 1
+                        pfac%idface = nbfaces 
+                       endif
+                   endif 
+                   pc2 => pc%neighbor3
+                   if (associated(pc%neighbor3)) then
+                       do k = 1, 4
+                           pfac2 => pc2%faces(k)
+                           if ((pfac%centroid .eq. pfac2%centroid) .and. abs(pfac%area - pfac2%area) <= 1.0d-9) then
+                            if (pfac2%idface == 0) then
+                                nbfaces = nbfaces + 1
+                                pfac%idface = nbfaces
+                                pfac2%idface = nbfaces
+                            endif
+                           endif
+                       enddo
+                   else if (.not. associated(pc%neighbor3)) then 
+                       if (pfac%bc_typ /= 0) then ! boundary face
+                           if (pfac%idface > 0) cycle
+                        nbfaces = nbfaces + 1
+                        pfac%idface = nbfaces 
+                       endif
+                   endif 
+                   pc2 => pc%neighbor4
+                   if (associated(pc%neighbor4)) then
+                       do k = 1, 4
+                           pfac2 => pc2%faces(k)
+                           if ((pfac%centroid .eq. pfac2%centroid) .and. abs(pfac%area - pfac2%area) <= 1.0d-9) then
+                            if (pfac2%idface == 0) then
+                                nbfaces = nbfaces + 1
+                                pfac%idface = nbfaces
+                                pfac2%idface = nbfaces
+                            endif
+                           endif
+                       enddo 
+                   else if (.not. associated(pc%neighbor4)) then 
+                       if (pfac%bc_typ /= 0) then ! boundary face
+                           if (pfac%idface > 0) cycle
+                        nbfaces = nbfaces + 1
+                        pfac%idface = nbfaces 
+                       endif
+                   endif 
+               endif 
+           enddo 
+       enddo 
+       
+       !begin debug
+       !do i = 1, nbelm
+       !    pc => cell(i)%p
+       !    do j = 1, 4
+       !        pfac => pc%faces(j)
+       !        if (pfac%idface == 4409) then
+       !            print*,'check cell', i
+       !        endif 
+       !    enddo
+       !enddo 
+       !end debug 
+       end subroutine assign_id_face_v2
+!----------------------------------------------------------------------  
 end module

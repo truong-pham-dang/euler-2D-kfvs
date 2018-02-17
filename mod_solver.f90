@@ -1,16 +1,16 @@
 module mod_solver
     use mod_read_gmsh,   only: nbelm
     use mod_cell_2D,     only: cell, cell_2D, nbfaces, face
-    use mod_fvm_face_2D, only: fvm_face_2D, face_2D 
+    use mod_fvm_face_2D, only: fvm_face_2D, face_2D
     implicit none
     
-    real(8)                              :: r_gaz, invdt, dt
+    real(8)                              :: r_gaz, invdt, dt, tmax
     real(8), parameter                   :: cfl = 0.9d0
     real(8), dimension(:),   allocatable :: rho, ux, uy, t
     real(8), dimension(:),   allocatable :: p, a, b, e
-    real(8), dimension(:,:), allocatable :: vect_u, vect_unew
+    real(8), dimension(:,:), allocatable :: vect_u, vect_unew, flux, rhs, rhsdummy_symetrie, rhsdummy_entree, rhsdummy_sortie
     real(8), dimension(:,:), allocatable :: vardummy_symetrie, vardummy_entree, vardummy_sortie
-    integer                              :: nb_symmetry = 0, nb_inlet = 0, nb_outlet = 0
+    integer                              :: nb_symmetry = 0, nb_inlet = 0, nb_outlet = 0, nmax
     contains
 !----------------------------------------------------------------------    
         subroutine donnee_initiale
@@ -110,7 +110,6 @@ module mod_solver
         integer                    :: cnt_symmetry, cnt_inlet, cnt_outlet
         type(cell_2D),     pointer :: pcel
         type(face),        pointer :: pfac
-        type(fvm_face_2D), pointer :: pfac_fvm
         
         cnt_symmetry = 0
         cnt_inlet    = 0
@@ -225,6 +224,7 @@ module mod_solver
             
             if (face4 == 0) then
                 print*, 'face4 = 0'
+                print*, 'Please check cell ', i
             endif
             
             perimetre = face_2D(face1)%f%len_nor + face_2D(face2)%f%len_nor + face_2D(face3)%f%len_nor + face_2D(face4)%f%len_nor
@@ -233,4 +233,162 @@ module mod_solver
         dt = cfl / invdt
         
         end subroutine timestep
+!----------------------------------------------------------------------
+        subroutine assign_lr_cell
+        use mod_struct_to_array, only: lr_cell
+        implicit none 
+        integer                    :: ifac, icel, fac
+        integer                    :: cnt_symmetry, cnt_inlet, cnt_outlet
+        type(cell_2D), pointer     :: pcel
+        type(face), pointer        :: pfac
+        type(fvm_face_2D), pointer :: pfac_fvm
+        
+        cnt_symmetry = 0
+        cnt_inlet    = 0
+        cnt_outlet   = 0
+        
+        ! Create left cell - right cell table for boundary faces
+        do icel = 1, nbelm
+            pcel => cell(icel)%p
+            do ifac = 1, 4
+                pfac => pcel%faces(ifac)
+                if (pfac%bc_typ == 1) then ! Airfoil - symetrie
+                    cnt_symmetry = cnt_symmetry + 1
+                    fac = pfac%idface
+                    lr_cell(fac, 1) = icel
+                    lr_cell(fac, 2) = cnt_symmetry ! dummy cell for symmetry bc
+                endif
+                
+                if (pfac%bc_typ == 2) then ! Inflow
+                    cnt_inlet = cnt_inlet + 1 
+                    fac = pfac%idface
+                    lr_cell(fac, 1) = icel
+                    lr_cell(fac, 2) = cnt_inlet ! dummy cell for inlet bc
+                endif 
+                
+                if (pfac%bc_typ == 3) then ! Outflow
+                    cnt_outlet = cnt_outlet + 1
+                    fac = pfac%idface
+                    lr_cell(fac, 1) = icel
+                    lr_cell(fac, 2) = cnt_outlet ! dummy cell for outlet bc
+                endif
+            enddo 
+        enddo 
+        
+        ! Create left cell - right cell table for internal faces
+        do ifac = 1, nbfaces
+            pfac_fvm => face_2D(ifac)%f
+            if (associated(pfac_fvm%left_cell) .and. associated(pfac_fvm%right_cell)) then 
+                lr_cell(ifac, 1) = pfac_fvm%left_cell%ident
+                lr_cell(ifac, 2) = pfac_fvm%right_cell%ident
+            endif
+        enddo 
+        end subroutine assign_lr_cell
+!----------------------------------------------------------------------
+        subroutine calcul_flux
+        use mod_flux
+        use mod_struct_to_array
+        implicit none 
+        integer :: ifac, left_cell, right_cell
+        real(8) :: flux_plus(1:4), flux_minus(1:4)
+        
+        if (.not. allocated(flux)) then
+            allocate(flux(1:nbfaces,1:4))
+        endif
+        
+        do ifac = 1, nbfaces
+            left_cell  = lr_cell(ifac,1)
+            right_cell = lr_cell(ifac,2)
+            
+            if (bc_typ(ifac) == 0) then
+                flux_plus(:)   = fluxp(rho(left_cell), ux(left_cell), uy(left_cell), & 
+                & e(left_cell), p(left_cell), t(left_cell), a(left_cell), b(left_cell), & 
+                & norm_x(left_cell), norm_y(left_cell))
+                flux_minus(:)  = fluxm(rho(right_cell), ux(right_cell), uy(right_cell), & 
+                & e(right_cell), p(right_cell), t(right_cell), a(right_cell), b(right_cell), & 
+                & norm_x(left_cell), norm_y(left_cell))
+                flux(ifac,:)   = len_norm(ifac) * (flux_plus(:) + flux_minus(:))
+            endif 
+            
+            if (bc_typ(ifac) == 1) then !symmetry
+                flux_plus(:)   = fluxp(rho(left_cell), ux(left_cell), uy(left_cell), & 
+                & e(left_cell), p(left_cell), t(left_cell), a(left_cell), b(left_cell), & 
+                & norm_x(left_cell), norm_y(left_cell))
+                flux_minus(:)  = fluxm(vardummy_symetrie(right_cell,1), vardummy_symetrie(right_cell,2), vardummy_symetrie(right_cell,3), & 
+                & vardummy_symetrie(right_cell,8), vardummy_symetrie(right_cell,5), vardummy_symetrie(right_cell,4), vardummy_symetrie(right_cell,6), vardummy_symetrie(right_cell,7), & 
+                & norm_x(left_cell), norm_y(left_cell))
+                flux(ifac,:)   = len_norm(ifac) * (flux_plus(:) + flux_minus(:))
+            endif
+            
+            if (bc_typ(ifac) == 2) then ! Inflow
+                flux_plus(:)   = fluxp(rho(left_cell), ux(left_cell), uy(left_cell), & 
+                & e(left_cell), p(left_cell), t(left_cell), a(left_cell), b(left_cell), & 
+                & norm_x(left_cell), norm_y(left_cell))
+                flux_minus(:)  = fluxm(vardummy_entree(right_cell,1), vardummy_entree(right_cell,2), vardummy_entree(right_cell,3), & 
+                & vardummy_entree(right_cell,8), vardummy_entree(right_cell,5), vardummy_entree(right_cell,4), vardummy_entree(right_cell,6), vardummy_entree(right_cell,7), & 
+                & norm_x(left_cell), norm_y(left_cell))
+                flux(ifac,:)   = len_norm(ifac) * (flux_plus(:) + flux_minus(:))
+            endif
+            
+            if (bc_typ(ifac) == 3) then ! Outflow
+                flux_plus(:)   = fluxp(rho(left_cell), ux(left_cell), uy(left_cell), & 
+                & e(left_cell), p(left_cell), t(left_cell), a(left_cell), b(left_cell), & 
+                & norm_x(left_cell), norm_y(left_cell))
+                flux_minus(:)  = fluxm(vardummy_sortie(right_cell,1), vardummy_sortie(right_cell,2), vardummy_sortie(right_cell,3), & 
+                & vardummy_sortie(right_cell,8), vardummy_sortie(right_cell,5), vardummy_sortie(right_cell,4), vardummy_sortie(right_cell,6), vardummy_sortie(right_cell,7), & 
+                & norm_x(left_cell), norm_y(left_cell))
+                flux(ifac,:)   = len_norm(ifac) * (flux_plus(:) + flux_minus(:))
+            endif 
+        enddo 
+        
+        end subroutine calcul_flux
+!----------------------------------------------------------------------
+        subroutine calcul_rhs
+        use mod_struct_to_array
+        implicit none
+        
+        integer :: ifac, left_cell, right_cell
+        
+        if (.not. allocated(rhs)) then 
+            allocate(rhs(nbelm,4))
+        endif 
+        
+        rhs = 0.0d0 
+        
+        do ifac = 1, nbfaces
+            left_cell  = lr_cell(ifac,1)
+            right_cell = lr_cell(ifac,2)
+            
+            if (bc_typ(ifac) == 0) then
+                rhs(left_cell,:)  = rhs(left_cell,:) - flux(ifac,:)
+                rhs(right_cell,:) = rhs(right_cell,:) + flux(ifac,:)
+            endif
+            
+            if (bc_typ(ifac) /= 0) then
+                rhs(left_cell,:)  = rhs(left_cell,:) - flux(ifac,:)
+            endif
+        enddo 
+        
+        end subroutine calcul_rhs
+!----------------------------------------------------------------------
+        subroutine euler_time_iteration
+        use mod_struct_to_array, only: vol
+        implicit none
+        integer :: icel
+        
+        do icel = 1, nbelm
+            vect_unew(icel,:) = vect_u(icel,:) + dt / vol(icel) *  rhs(icel,:)
+        enddo 
+        
+        end subroutine euler_time_iteration
+!----------------------------------------------------------------------
+        subroutine calcul_rho_ux_uy_t
+        implicit none
+        
+        rho(1:nbelm) = vect_u(1:nbelm,1)
+        ux(1:nbelm)  = vect_u(1:nbelm,2) / rho(1:nbelm)
+        uy(1:nbelm)  = vect_u(1:nbelm,3) / rho(1:nbelm)
+        t(1:nbelm)   = 2.0d0/(3.0d0 * r_gaz * rho(1:nbelm)) *(vect_u(1:nbelm,4)-0.5d0*rho(1:nbelm)*(ux(1:nbelm)**2+uy(1:nbelm)**2))
+        end subroutine calcul_rho_ux_uy_t
+!----------------------------------------------------------------------
 end module

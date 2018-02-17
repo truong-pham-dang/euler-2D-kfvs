@@ -140,6 +140,76 @@ module mod_write_vtk
       close(unit = 21)
 
       end subroutine
-!----------------------------------------------------------------------
+!----------------------------------------------------------------------    
+      subroutine write_solution_vtk(iter)
+      use mod_solver
+      implicit none
+
+      integer, intent(in) :: iter
+      integer(4)          :: i
+      character(300)      :: foutput
+      character(7)        :: citer
+      
+      write(citer,'(I7.7)') iter
+      foutput = trim(fname)//'_'//trim(citer)//'.vtk'
+
+      open(unit = 21, file = foutput, status = 'replace')
+
+      write(21,'(a)') '# vtk DataFile Version 2.0'
+      write(21,'(a)') 'VTK format for unstructured mesh'
+      write(21,'(a)') 'ASCII'
+      write(21,'(a)') 'DATASET POLYDATA'
+      write(21,1) nbnode
+
+      do i = 1, nbnode
+        write(21,*) coord_nodes(i)%p%x, coord_nodes(i)%p%y, coord_nodes(i)%p%z
+      end do
+
+      write(21,2) nbelm, 5*nbelm
+
+      do i = 1, nbelm
+        write(21,*) 4,id_nodes(i)%pn%id_node(6:9)-1
+      end do
+
+      write(21,3) nbelm
+      write(21,'(a)') 'SCALARS CELL_IDENT integer 1'
+      write(21,'(a)') 'LOOKUP_TABLE default '
+
+      do i = 1, nbelm
+        write(21,*) id_nodes(i)%pn%id_node(1)
+      end do
+
+      write(21,'(a)') 'SCALARS Density float'
+      write(21,'(a)') 'LOOKUP_TABLE default '
+      do i = 1, nbelm
+          write(21,*) rho(i)
+      enddo 
+      
+      write(21,'(a)') 'SCALARS Temperature float'
+      write(21,'(a)') 'LOOKUP_TABLE default '
+      do i = 1, nbelm
+          write(21,*) t(i)
+      enddo 
+      
+      write(21,'(a)') 'SCALARS Pressure float'
+      write(21,'(a)') 'LOOKUP_TABLE default '
+      do i = 1, nbelm
+          write(21,*) p(i)
+      enddo
+      
+      write(21,'(a)') 'SCALARS Velocity_magnitude float'
+      write(21,'(a)') 'LOOKUP_TABLE default '
+      do i = 1, nbelm
+          write(21,*) sqrt(ux(i)**2 + uy(i)**2)
+      enddo
+
+      close(unit = 21)
+
+1     format('POINTS',i9,' float')
+2     format('POLYGONS ',2i9)
+3     format('CELL_DATA',i9)
+
+      end subroutine
+ !----------------------------------------------------------------------     
 
 end module
