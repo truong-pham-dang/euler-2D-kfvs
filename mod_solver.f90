@@ -57,10 +57,10 @@ module mod_solver
         endif
         
         ! hard code, need to be modified
-        rho = 0.2969689477d-4
-        ux  = 1059.458022d0
+        rho = 0.2d-4 !0.2969689477d-4
+        ux  = 500.0d0 !1059.458022d0
         uy  = 0.0d0
-        t   = 1295.646765d0
+        t   = 1000.0d0!1295.646765d0
         
         end subroutine donnee_initiale
 !----------------------------------------------------------------------

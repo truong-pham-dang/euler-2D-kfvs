@@ -27,12 +27,10 @@ subroutine solver_kfvs
     nmax=floor(tmax/dt)
     
     ! debug
-    nmax = 500
+    nmax = 500000
     
     !--- evolution
     do n=1,nmax
-        
-        call timestep
         
         !-- calcul des flux
         call calcul_flux 
@@ -54,7 +52,8 @@ subroutine solver_kfvs
         call calcul_derived_quantities
         
         !-- sauvegarde resultats (format vtk, lisible par Paraview)
-        if (mod(n,100) == 0) then
+        if (mod(n,10000) == 0) then
+            write(*,*) 'Writing solution file at iteration ', n, '...'
             call write_solution_vtk(n)
         endif 
     enddo 
