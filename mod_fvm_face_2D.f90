@@ -64,7 +64,7 @@ module mod_fvm_face_2D
                         
                         if (face_2D(ifac)%f%idface > 0) cycle ! just to index face_2D one time
                         
-                        ! Copy all data from face to fvm_face_2D
+                        ! Copy data from face to fvm_face_2D
                         face_2D(ifac)%f%p1       = cell(icel)%p%faces(jfac)%p1
                         face_2D(ifac)%f%p2       = cell(icel)%p%faces(jfac)%p2
                         face_2D(ifac)%f%bc_typ   = cell(icel)%p%faces(jfac)%bc_typ
@@ -159,7 +159,11 @@ module mod_fvm_face_2D
                         face_2D(ifac)%f%len_tan        = norm_vec
                         face_2D(ifac)%f%tangent_vector = face_2D(ifac)%f%tangent_vector .times. (1.0d0 / norm_vec)
                         
-                        face_2D(ifac)%f%normal_vector  = vector_t(face_2D(ifac)%f%p1%y - face_2D(ifac)%f%p2%y, face_2D(ifac)%f%p2%x - face_2D(ifac)%f%p1%x, 0.0d0)
+                        if (associated(face_2D(ifac)%f%right_cell,cell(icel)%p)) then
+                            face_2D(ifac)%f%normal_vector  = vector_t(face_2D(ifac)%f%p1%y - face_2D(ifac)%f%p2%y, face_2D(ifac)%f%p2%x - face_2D(ifac)%f%p1%x, 0.0d0)
+                        else if (associated(face_2D(ifac)%f%left_cell,cell(icel)%p)) then 
+                            face_2D(ifac)%f%normal_vector =  vector_t(-face_2D(ifac)%f%p1%y + face_2D(ifac)%f%p2%y, -face_2D(ifac)%f%p2%x + face_2D(ifac)%f%p1%x, 0.0d0)
+                        endif
                         norm_vec                       = .abs. (face_2D(ifac)%f%normal_vector)
                         face_2D(ifac)%f%len_nor        = norm_vec
                         face_2D(ifac)%f%normal_vector  = face_2D(ifac)%f%normal_vector .times. (1.0d0 / norm_vec) 

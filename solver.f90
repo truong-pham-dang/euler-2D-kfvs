@@ -26,6 +26,9 @@ subroutine solver_kfvs
     tmax=0.3828823925d-2
     nmax=floor(tmax/dt)
     
+    ! debug
+    nmax = 500
+    
     !--- evolution
     do n=1,nmax
         

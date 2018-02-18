@@ -182,6 +182,7 @@ module mod_solver
         vect_u(:,2) = rho(:) * ux(:)
         vect_u(:,3) = rho(:) * uy(:)
         vect_u(:,4) = e(:)
+        vect_unew   = vect_u
         end subroutine calcul_conservative_vector
 !----------------------------------------------------------------------
         !--- pas de temps et vitesse maximum
@@ -303,40 +304,40 @@ module mod_solver
             if (bc_typ(ifac) == 0) then
                 flux_plus(:)   = fluxp(rho(left_cell), ux(left_cell), uy(left_cell), & 
                 & e(left_cell), p(left_cell), t(left_cell), a(left_cell), b(left_cell), & 
-                & norm_x(left_cell), norm_y(left_cell))
+                & norm_x(ifac), norm_y(ifac))
                 flux_minus(:)  = fluxm(rho(right_cell), ux(right_cell), uy(right_cell), & 
                 & e(right_cell), p(right_cell), t(right_cell), a(right_cell), b(right_cell), & 
-                & norm_x(left_cell), norm_y(left_cell))
+                & norm_x(ifac), norm_y(ifac))
                 flux(ifac,:)   = len_norm(ifac) * (flux_plus(:) + flux_minus(:))
             endif 
             
             if (bc_typ(ifac) == 1) then !symmetry
                 flux_plus(:)   = fluxp(rho(left_cell), ux(left_cell), uy(left_cell), & 
                 & e(left_cell), p(left_cell), t(left_cell), a(left_cell), b(left_cell), & 
-                & norm_x(left_cell), norm_y(left_cell))
+                & norm_x(ifac), norm_y(ifac))
                 flux_minus(:)  = fluxm(vardummy_symetrie(right_cell,1), vardummy_symetrie(right_cell,2), vardummy_symetrie(right_cell,3), & 
                 & vardummy_symetrie(right_cell,8), vardummy_symetrie(right_cell,5), vardummy_symetrie(right_cell,4), vardummy_symetrie(right_cell,6), vardummy_symetrie(right_cell,7), & 
-                & norm_x(left_cell), norm_y(left_cell))
+                & norm_x(ifac), norm_y(ifac))
                 flux(ifac,:)   = len_norm(ifac) * (flux_plus(:) + flux_minus(:))
             endif
             
             if (bc_typ(ifac) == 2) then ! Inflow
                 flux_plus(:)   = fluxp(rho(left_cell), ux(left_cell), uy(left_cell), & 
                 & e(left_cell), p(left_cell), t(left_cell), a(left_cell), b(left_cell), & 
-                & norm_x(left_cell), norm_y(left_cell))
+                & norm_x(ifac), norm_y(ifac))
                 flux_minus(:)  = fluxm(vardummy_entree(right_cell,1), vardummy_entree(right_cell,2), vardummy_entree(right_cell,3), & 
                 & vardummy_entree(right_cell,8), vardummy_entree(right_cell,5), vardummy_entree(right_cell,4), vardummy_entree(right_cell,6), vardummy_entree(right_cell,7), & 
-                & norm_x(left_cell), norm_y(left_cell))
+                & norm_x(ifac), norm_y(ifac))
                 flux(ifac,:)   = len_norm(ifac) * (flux_plus(:) + flux_minus(:))
             endif
             
             if (bc_typ(ifac) == 3) then ! Outflow
                 flux_plus(:)   = fluxp(rho(left_cell), ux(left_cell), uy(left_cell), & 
                 & e(left_cell), p(left_cell), t(left_cell), a(left_cell), b(left_cell), & 
-                & norm_x(left_cell), norm_y(left_cell))
+                & norm_x(ifac), norm_y(ifac))
                 flux_minus(:)  = fluxm(vardummy_sortie(right_cell,1), vardummy_sortie(right_cell,2), vardummy_sortie(right_cell,3), & 
                 & vardummy_sortie(right_cell,8), vardummy_sortie(right_cell,5), vardummy_sortie(right_cell,4), vardummy_sortie(right_cell,6), vardummy_sortie(right_cell,7), & 
-                & norm_x(left_cell), norm_y(left_cell))
+                & norm_x(ifac), norm_y(ifac))
                 flux(ifac,:)   = len_norm(ifac) * (flux_plus(:) + flux_minus(:))
             endif 
         enddo 

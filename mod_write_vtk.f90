@@ -197,6 +197,18 @@ module mod_write_vtk
           write(21,*) p(i)
       enddo
       
+      write(21,'(a)') 'SCALARS Velocity_u float'
+      write(21,'(a)') 'LOOKUP_TABLE default '
+      do i = 1, nbelm
+          write(21,*) ux(i)
+      enddo
+      
+      write(21,'(a)') 'SCALARS Velocity_v float'
+      write(21,'(a)') 'LOOKUP_TABLE default '
+      do i = 1, nbelm
+          write(21,*) uy(i)
+      enddo
+      
       write(21,'(a)') 'SCALARS Velocity_magnitude float'
       write(21,'(a)') 'LOOKUP_TABLE default '
       do i = 1, nbelm
