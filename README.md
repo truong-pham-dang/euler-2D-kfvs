@@ -1,5 +1,5 @@
 # euler-2D-kfvs
-A demo solver for gmsh-to-vtk-and-tecplot
+Euler equations unstructured solver using kinetic flux vector splitting (KFVS) scheme.
 
 Some features:
 - Finite volume method.
