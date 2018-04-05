@@ -12,3 +12,6 @@ euler-2D-kfvs is inspired by the structured finite volume solver of [Prof. Luc M
 
  
 [More detailed description](https://github.com/truongd8593/euler-2D-kfvs/wiki)
+
+Remark:
+ - This Fortran 95 code is no longer maintained. I have upgraded it to Fortran 2003, following an object-oriented model. The code is [here](https://github.com/truongd8593/euler2D-kfvs-Fortran2003).
